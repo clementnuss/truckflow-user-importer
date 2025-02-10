@@ -1,4 +1,4 @@
-package internal
+package payrexx
 
 import (
 	"encoding/csv"
@@ -10,27 +10,13 @@ import (
 	"github.com/spkg/bom"
 )
 
-type DateTime struct {
-	time.Time
-}
-
-// Convert the internal date as CSV string
-func (date *DateTime) MarshalCSV() (string, error) {
-	return date.Time.Format("20060201"), nil
-}
-
-// You could also use the standard Stringer interface
-func (date *DateTime) String() string {
-	return date.String() // Redundant, just for example
-}
-
 // Convert the CSV string as internal date
 func (date *DateTime) UnmarshalCSV(csv string) (err error) {
 	date.Time, err = time.Parse("2006-01-02 15:04:05", csv)
 	return err
 }
 
-type Transaction struct {
+type CSVTransaction struct {
 	Id           string   `csv:"#"`
 	FirstName    string   `csv:"First name"`
 	LastName     string   `csv:"Last Name"`
@@ -48,8 +34,8 @@ type Transaction struct {
 	ClientNumber string   `csv:"numero_client_optionnel"`
 }
 
-func ParseCSV(file *os.File) ([]Transaction, error) {
-	transactions := []Transaction{}
+func ParseCSV(file *os.File) ([]CSVTransaction, error) {
+	transactions := []CSVTransaction{}
 	gocsv.SetCSVReader(func(in io.Reader) gocsv.CSVReader {
 		r := csv.NewReader(bom.NewReader(in))
 		r.Comma = ';'

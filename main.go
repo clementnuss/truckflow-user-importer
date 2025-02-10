@@ -1,150 +1,100 @@
 package main
 
 import (
-	"crypto/sha256"
-	"database/sql"
-	"encoding/json"
+	"bytes"
+	"context"
+	"errors"
 	"fmt"
 	"log/slog"
+	"net/http"
 	"os"
-	"path/filepath"
+	"os/signal"
+	"syscall"
+	"time"
 
-	// "io"
+	"github.com/clementnuss/truckflow-user-importer/internal/database"
+	"github.com/clementnuss/truckflow-user-importer/internal/webhook"
+	"github.com/minio/minio-go/v7"
+	"github.com/minio/minio-go/v7/pkg/credentials"
 
-	// "path/filepath"
-
-	"github.com/clementnuss/truckflow-user-importer/internal"
-	"github.com/clementnuss/truckflow-user-importer/internal/truckflow"
+	_ "github.com/joho/godotenv/autoload"
 )
 
+type S3Config struct {
+	Endpoint  string
+	Region    string
+	Bucket    string
+	AccessKey string
+	SecretKey string
+}
+
 func main() {
-	// Initialize database connection
-	db, err := internal.InitDB()
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGKILL, syscall.SIGINT)
+	defer stop()
+
+	var err error
+	db, err := database.InitDB()
 	if err != nil {
-		fmt.Printf("Database initialization error: %v\n", err)
+		slog.Error("database initialization error", "error", err)
 		return
 	}
 	defer db.Close()
 
-	// Open the CSV file
-	file, err := os.Open("records.csv")
+  slog.Info("database successfully initialized")
+
+	endpoint := os.Getenv("S3_ENDPOINT")
+	accessKeyID := os.Getenv("S3_ACCESS_KEY_ID")
+	secretAccessKey := os.Getenv("S3_SECRET_ACCESS_KEY")
+	bucket := os.Getenv("S3_BUCKET")
+
+	// Initialize minio client object.
+	minioClient, err := minio.New(endpoint, &minio.Options{
+		Creds:  credentials.NewStaticV4(accessKeyID, secretAccessKey, ""),
+		Secure: true,
+	})
 	if err != nil {
-		fmt.Printf("Error opening CSV file: %v\n", err)
+		slog.Error("database initialization error", "error", err)
 		return
 	}
-	defer file.Close()
 
-	transactions, err := internal.ParseCSV(file)
-	if err != nil {
-		slog.Error("Error parsing CSV transactions header: %v\n", "error", err)
-		return
-	}
-	code := 1
+  testData := []byte(fmt.Sprintf("test string %v", time.Now()))
+	_, err = minioClient.PutObject(ctx, bucket, "importer/test", bytes.NewReader(testData), int64(len(testData)), minio.PutObjectOptions{})
+  if err != nil {
+    slog.Error("unable to create test file on S3 endpoint", "error", err)
+    return
+  }
+	err = minioClient.RemoveObject(ctx, bucket, "importer/test", minio.RemoveObjectOptions{})
+  if err != nil {
+    slog.Error("unable to delete test file on S3 endpoint", "error", err)
+    return
+  }
 
-	for _, tr := range transactions {
-		if tr.Status == "Cancelled" {
-			continue
-		}
+	slog.Info("minio s3 client started")
 
-		processed, err := isTransactionProcessed(db, generateHash(tr.Email), tr.Id)
-		if err != nil {
-			slog.Error("Unable to check if transaction has already been processed", "transaction", tr, "error", err)
-			continue
-		}
-
-		if processed {
-			continue
-		}
-
-		label := ""
-		if tr.Company != "" {
-			label = tr.Company
-		} else {
-			label = fmt.Sprintf("%s %s", tr.FirstName, tr.LastName)
-		}
-
-		code += 1
-		tiers := truckflow.Tiers{
-			Type:      "Client",
-			Label:     label,
-			Active:    true,
-			Address:   tr.StreeAndNo,
-			ZIPCode:   tr.ZIPCode,
-			City:      tr.City,
-			Telephone: tr.Telephone,
-			Code:      fmt.Sprintf("%05d", code),
-		}
-		truckflowImport := truckflow.Import{
-			Version: "1.50",
-			Items:   []truckflow.Tiers{tiers},
-		}
-
-		os.MkdirAll("output", os.ModePerm)
-		jsonData, err := json.Marshal(truckflowImport)
-		if err != nil {
-			slog.Error("Error marshaling JSON", "transaction", tr, "error", err)
-			continue
-		}
-
-		path := filepath.Join("output", fmt.Sprintf("form_import_%s.json", tiers.Code))
-		err = os.WriteFile(path, jsonData, 0644)
-		if err != nil {
-			slog.Error("unable to write tiers export file", "path", path, "error", err)
-			continue
-		}
-
+	port := ":9000"
+	server := http.Server{
+		Addr: port,
 	}
 
-	// 	// Record processed transaction
-	// 	err = recordProcessedTransaction(db, clientHash, transactionID)
-	// 	if err != nil {
-	// 		fmt.Printf("Error recording processed transaction: %v\n", err)
-	// 		continue
-	// 	}
-	// }
+	http.HandleFunc("/webhook", func(w http.ResponseWriter, r *http.Request) {
+		webhook.WebhookHandler(w, r, db, minioClient)
+	})
 
-	// Generate JSON files for each client
-	// for hash, client := range clients {
-	// 	filename := filepath.Join("output", fmt.Sprintf("client_%s.json", hash))
-	//
-	// 	// Create output directory if it doesn't exist
-	// 	os.MkdirAll("output", os.ModePerm)
-	//
-	// 	// Create and write JSON file
-	// 	jsonData, err := json.MarshalIndent(client, "", "    ")
-	// 	if err != nil {
-	// 		fmt.Printf("Error marshaling JSON for client %s: %v\n", client.Email, err)
-	// 		continue
-	// 	}
-	//
-	// 	err = os.WriteFile(filename, jsonData, 0644)
-	// 	if err != nil {
-	// 		fmt.Printf("Error writing JSON file for client %s: %v\n", client.Email, err)
-	// 		continue
-	// 	}
-	// }
-}
+	slog.Info("webhook server starting", "port", port)
+	go func() {
+		err := server.ListenAndServe()
+		if !errors.Is(err, http.ErrServerClosed) {
+			slog.Error("HTTP server cannot start listening", "error", err)
+			stop()
+		}
+	}()
 
-func generateHash(email string) string {
-	hasher := sha256.New()
-	hasher.Write([]byte(email))
-	return fmt.Sprintf("%x", hasher.Sum(nil))
-}
+	<-ctx.Done()
 
-func isTransactionProcessed(db *sql.DB, clientHash, transactionID string) (bool, error) {
-	var exists bool
-	err := db.QueryRow("SELECT EXISTS(SELECT 1 FROM processed_records WHERE client_hash = ? AND transaction_id = ?)",
-		clientHash, transactionID).Scan(&exists)
-	if err != nil {
-		return false, err
+	if err := server.Shutdown(context.Background()); err != nil && !errors.Is(err, http.ErrServerClosed) {
+		slog.Error("could not shutdown http server properly", "error", err)
+		os.Exit(1)
 	}
-	return exists, nil
-}
 
-func recordProcessedTransaction(db *sql.DB, clientHash, transactionID string) error {
-	_, err := db.Exec(
-		"INSERT INTO processed_records (client_hash, transaction_id) VALUES (?, ?)",
-		clientHash, transactionID,
-	)
-	return err
+	slog.Info("graceful shutdown completed")
 }

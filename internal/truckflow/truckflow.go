@@ -9,10 +9,38 @@ type Tiers struct {
 	ZIPCode      string `json:"Address2"`
 	City         string `json:"Address3"`
 	Telephone    string `json:"Address4"`
+	Email        string `json:"Address5"`
+	Entreprise   string `json:"Address6"`
 	ProductCodes string `json:"ProductCodes"`
 }
 
-type Import struct {
+type TiersImport struct {
 	Version string  `json:"version"`
+	Culture string  `json:"culture"`
 	Items   []Tiers `json:"Items"`
+}
+
+type Pass struct {
+	ParkCode    string `json:"ParkCode"`
+	Label       string `json:"Label"`
+	FlowType    string `json:"FlowType"`
+	Plate       string `json:"Plate"`
+	CompanyCode string `json:"CompanyCode"`
+	TiersCode   string `json:"TiersCode"`
+	ProductCode string `json:"ProductCode"`
+}
+
+type PassImport struct {
+	Version string `json:"version"`
+	Culture string `json:"culture"`
+	Items   []Pass `json:"Items"`
+}
+
+func NewPass() *Pass {
+  p := Pass{}
+  p.FlowType = "Réception"
+  p.ProductCode = "Dechets verts"
+  p.CompanyCode = "Ajoverts"
+
+  return &p
 }
