@@ -41,6 +41,11 @@ func WebhookHandler(w http.ResponseWriter, r *http.Request, db *sql.DB, s3 *mini
 
 	transaction := formData.Transaction
 	transaction.SanitizeFields()
+	if transaction.Status != "confirmed" {
+		slog.Info("skipping uncompleted transaction", "status", transaction.Status)
+		return
+	}
+
 	clientHash := database.GenerateHash(transaction.Contact.Email)
 
 	processed, err := database.IsTransactionProcessed(db, clientHash, transaction.Uuid)

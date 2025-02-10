@@ -20,14 +20,6 @@ import (
 	_ "github.com/joho/godotenv/autoload"
 )
 
-type S3Config struct {
-	Endpoint  string
-	Region    string
-	Bucket    string
-	AccessKey string
-	SecretKey string
-}
-
 func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGKILL, syscall.SIGINT)
 	defer stop()
@@ -39,8 +31,7 @@ func main() {
 		return
 	}
 	defer db.Close()
-
-  slog.Info("database successfully initialized")
+	slog.Info("database successfully initialized")
 
 	endpoint := os.Getenv("S3_ENDPOINT")
 	accessKeyID := os.Getenv("S3_ACCESS_KEY_ID")
@@ -57,17 +48,17 @@ func main() {
 		return
 	}
 
-  testData := []byte(fmt.Sprintf("test string %v", time.Now()))
+	testData := []byte(fmt.Sprintf("test string %v", time.Now()))
 	_, err = minioClient.PutObject(ctx, bucket, "importer/test", bytes.NewReader(testData), int64(len(testData)), minio.PutObjectOptions{})
-  if err != nil {
-    slog.Error("unable to create test file on S3 endpoint", "error", err)
-    return
-  }
+	if err != nil {
+		slog.Error("unable to create test file on S3 endpoint", "error", err)
+		return
+	}
 	err = minioClient.RemoveObject(ctx, bucket, "importer/test", minio.RemoveObjectOptions{})
-  if err != nil {
-    slog.Error("unable to delete test file on S3 endpoint", "error", err)
-    return
-  }
+	if err != nil {
+		slog.Error("unable to delete test file on S3 endpoint", "error", err)
+		return
+	}
 
 	slog.Info("minio s3 client started")
 
