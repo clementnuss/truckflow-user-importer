@@ -106,9 +106,47 @@ func WebhookHandler(w http.ResponseWriter, r *http.Request, db *sql.DB, s3 *mini
 	_ = database.SetCounter(db, "client", clientCounter)
 
 	// pass creation
-  for i := range(len(transaction.Plates)) {
+	passImport := truckflow.PassImport{
+		Version: "1.50",
+		Culture: "fr",
+	}
+	passCounter, err := database.RetrieveCounter(db, "pass")
+	if err != nil {
+		slog.Error("unable to retrieve the pass counter from the DB", "error", err)
+		http.Error(w, "Database error - couldn't retrieve pass counter", http.StatusInternalServerError)
+		return
+	}
+	for _, pl := range transaction.Plates {
+		passCounter += 1
+		pa := truckflow.NewPass()
+		pa.Plate = pl
+		pa.ParkCode = fmt.Sprintf("NEW%05d", passCounter)
+		pa.Label = pa.ParkCode
+		pa.TiersCode = tiers.Code
+		passImport.Items = append(passImport.Items, *pa)
+	}
+	jsonData, err = json.Marshal(passImport)
+	if err != nil {
+		slog.Error("Error marshaling JSON", "transaction", transaction.Uuid, "error", err)
+		http.Error(w, "Error marshaling JSON for tier", http.StatusInternalServerError)
+		return
+	}
 
-  }
+	path = filepath.Join("importer/", fmt.Sprintf("pass_import_%s.json", tiers.Code))
+	_, err = s3.PutObject(
+		context.Background(),
+		os.Getenv("S3_BUCKET"),
+		path,
+		bytes.NewReader(jsonData),
+		int64(len(jsonData)),
+		minio.PutObjectOptions{},
+	)
+	if err != nil {
+		slog.Error("unable to put json file on s3 bucket", "object", path, "error", err)
+		http.Error(w, fmt.Sprintf("unable to write pass json. error: %v", err), http.StatusInternalServerError)
+		return
+	}
+	_ = database.SetCounter(db, "pass", passCounter)
 
 	err = database.RecordProcessedTransaction(db, clientHash, transaction.Uuid)
 	if err != nil {
