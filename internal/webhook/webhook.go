@@ -43,6 +43,7 @@ func WebhookHandler(w http.ResponseWriter, r *http.Request, db *sql.DB, s3 *mini
 	transaction.SanitizeFields()
 	if transaction.Status != "confirmed" {
 		slog.Info("skipping uncompleted transaction", "status", transaction.Status)
+		_, _ = w.Write([]byte("Ignoring uncompleted transaction"))
 		return
 	}
 
@@ -56,7 +57,7 @@ func WebhookHandler(w http.ResponseWriter, r *http.Request, db *sql.DB, s3 *mini
 	if processed {
 		slog.Info("skipping already processed transaction.", "transaction", transaction.Uuid)
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("Transaction already processed"))
+		_, _ = w.Write([]byte("Transaction already processed"))
 		return
 	}
 
