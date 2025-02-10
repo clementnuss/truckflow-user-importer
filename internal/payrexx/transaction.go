@@ -78,7 +78,7 @@ func (tr *Transaction) SanitizeFields() {
 		}
 	}
 
-	reg, _ := regexp.Compile("s+") // compile
+	reg, _ := regexp.Compile(`\s+`) // compile
 	platesStr = reg.ReplaceAllString(platesStr, "")
 
 	plates := strings.Split(platesStr, ",")

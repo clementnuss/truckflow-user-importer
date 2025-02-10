@@ -35,7 +35,7 @@ func TestCorrectWebhookParsing(t *testing.T) {
         {
           "type": "text",
           "name": "Numéros de plaques (séparés par des virgules)",
-          "value": "JU12345"
+          "value": "JU12345, Ju54321"
         }
       ]
     },
@@ -62,7 +62,12 @@ func TestCorrectWebhookParsing(t *testing.T) {
 	}{}
 	err := json.Unmarshal([]byte(sampleTransaction), &formData)
 
+  tr := formData.Transaction 
+  tr.SanitizeFields()
+
+  assert.Equal(t, []string{"JU12345", "JU54321"}, tr.Plates)
+
 	assert.NoError(t, err)
-	assert.Equal(t, "some@email.ch", formData.Transaction.Contact.Email)
-	assert.Equal(t, 2, formData.Transaction.Invoice.Products[0].Quantity)
+	assert.Equal(t, "some@email.ch", tr.Contact.Email)
+	assert.Equal(t, 2, tr.Invoice.Products[0].Quantity)
 }
