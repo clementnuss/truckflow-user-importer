@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"sync"
 
 	"github.com/clementnuss/truckflow-user-importer/internal/database"
 	"github.com/clementnuss/truckflow-user-importer/internal/payrexx"
@@ -18,7 +19,12 @@ import (
 	"github.com/minio/minio-go/v7"
 )
 
+var mx sync.Mutex = sync.Mutex{}
+
 func WebhookHandler(w http.ResponseWriter, r *http.Request, db *sql.DB, s3 *minio.Client) {
+	mx.Lock()
+	defer mx.Unlock()
+
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
