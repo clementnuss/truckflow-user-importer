@@ -74,20 +74,26 @@ func WebhookHandler(w http.ResponseWriter, r *http.Request, db *sql.DB, s3 *mini
 		return
 	}
 
+	isCompany := len(transaction.Contact.Company) > 0
+
 	// tier creation
 	clientCounter += 1
 	tiers := truckflow.Tiers{
 		Type:         "Fournisseur",
-		Label:        transaction.Contact.FirstName + " " + transaction.Contact.LastName,
 		Active:       true,
 		Address:      transaction.Contact.StreetAndNo,
 		ZIPCode:      transaction.Contact.ZIPCode,
 		City:         transaction.Contact.City,
 		Telephone:    transaction.Contact.Telephone,
 		Email:        transaction.Contact.Email,
-		Entreprise:   transaction.Contact.Company,
 		Code:         fmt.Sprintf("%05d", clientCounter),
 		ProductCodes: "Dechets verts",
+	}
+	if isCompany {
+		tiers.ContactPerson = transaction.Contact.FirstName + " " + transaction.Contact.LastName
+		tiers.Label = transaction.Contact.Company
+	} else {
+		tiers.Label = transaction.Contact.FirstName + " " + transaction.Contact.LastName
 	}
 	truckflowImport := truckflow.TiersImport{
 		Version: "1.50",
@@ -135,6 +141,11 @@ func WebhookHandler(w http.ResponseWriter, r *http.Request, db *sql.DB, s3 *mini
 		pa.ParkCode = fmt.Sprintf("NEW%05d", passCounter)
 		pa.Label = pa.ParkCode
 		pa.TiersCode = tiers.Code
+		if isCompany {
+			pa.CompanyCode = "entreprises"
+		} else {
+			pa.CompanyCode = "particuliers"
+		}
 		passImport.Items = append(passImport.Items, *pa)
 	}
 	jsonData, err = json.Marshal(passImport)

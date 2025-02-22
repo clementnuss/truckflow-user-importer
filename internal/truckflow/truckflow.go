@@ -1,17 +1,17 @@
 package truckflow
 
 type Tiers struct {
-	Type         string `json:"TiersType"`
-	Code         string `json:"TiersCode"`
-	Label        string `json:"Label"`
-	Active       bool   `json:"IsActive"`
-	Address      string `json:"Address1"`
-	ZIPCode      string `json:"Address2"`
-	City         string `json:"Address3"`
-	Telephone    string `json:"Address4"`
-	Email        string `json:"Address5"`
-	Entreprise   string `json:"Address6"`
-	ProductCodes string `json:"ProductCodes"`
+	Type          string `json:"TiersType"`
+	Code          string `json:"TiersCode"`
+	Label         string `json:"Label"`
+	Active        bool   `json:"IsActive"`
+	Address       string `json:"Address1"`
+	ZIPCode       string `json:"Address2"`
+	City          string `json:"Address3"`
+	Telephone     string `json:"Address4"`
+	Email         string `json:"Address5"`
+	ContactPerson string `json:"Address6"`
+	ProductCodes  string `json:"ProductCodes"`
 }
 
 type TiersImport struct {
@@ -37,10 +37,9 @@ type PassImport struct {
 }
 
 func NewPass() *Pass {
-  p := Pass{}
-  p.FlowType = "Réception"
-  p.ProductCode = "Dechets verts"
-  p.CompanyCode = "Ajoverts"
+	p := Pass{}
+	p.FlowType = "Réception"
+	p.ProductCode = "Dechets verts"
 
-  return &p
+	return &p
 }
