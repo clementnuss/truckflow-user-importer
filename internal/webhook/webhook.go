@@ -147,7 +147,8 @@ func WebhookHandler(w http.ResponseWriter, r *http.Request, db *sql.DB, s3 *mini
 		case payrexx.Individual:
 			pa.CompanyCode = "particuliers"
 		default:
-			slog.Error("unknown client type", "transactionId", transaction.Uuid)
+			slog.Error("unknown client type. assigning individual type", "transactionId", transaction.Uuid)
+			pa.CompanyCode = "particuliers"
 		}
 		passImport.Items = append(passImport.Items, *pa)
 	}
@@ -179,5 +180,5 @@ func WebhookHandler(w http.ResponseWriter, r *http.Request, db *sql.DB, s3 *mini
 		slog.Error("unable to record processed transaction.", "transaction", transaction.Uuid, "error", err)
 	}
 
-	slog.Info("successfully imported a new tier", "tiers", transaction.Uuid, "code", tiers.Code)
+	slog.Info("successfully imported a new tier", "tiers", transaction.Uuid, "code", tiers.Code, "label", tiers.Label)
 }
