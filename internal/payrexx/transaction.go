@@ -1,6 +1,7 @@
 package payrexx
 
 import (
+	"log/slog"
 	"regexp"
 	"strings"
 	"time"
@@ -43,17 +44,25 @@ type CustomField struct {
 	Value string `json:"value"`
 }
 
+type ClientType int
+
+const (
+	Individual = iota + 1
+	Company
+)
+
 type Contact struct {
-	Title        string `json:"title"`
-	FirstName    string `json:"firstname"`
-	LastName     string `json:"lastname"`
-	StreetAndNo  string `json:"street"`
-	ZIPCode      string `json:"zip"`
-	City         string `json:"place"`
-	Country      string `json:"country"`
-	Telephone    string `json:"phone"`
-	Email        string `json:"email"`
-	Company      string `json:"company"`
+	Title       string `json:"title"`
+	FirstName   string `json:"firstname"`
+	LastName    string `json:"lastname"`
+	StreetAndNo string `json:"street"`
+	ZIPCode     string `json:"zip"`
+	City        string `json:"place"`
+	Country     string `json:"country"`
+	Telephone   string `json:"phone"`
+	Email       string `json:"email"`
+	Company     string `json:"company"`
+	ClientType
 }
 
 func (tr *Transaction) SanitizeFields() {
@@ -70,11 +79,22 @@ func (tr *Transaction) SanitizeFields() {
 	platesQty := tr.Invoice.Products[0].Quantity
 	var platesStr string
 	for _, f := range tr.Invoice.CustomFields {
-		if strings.Contains(f.Name, "Numéros de plaques") {
+		switch {
+		case strings.Contains(f.Name, "Numéros de plaques"):
 			platesStr = strings.ToUpper(strings.TrimSpace(f.Value))
-		}
-		if strings.Contains(f.Name, "Entreprise") {
+
+		case strings.Contains(f.Name, "Entreprise"):
 			tr.Contact.Company = strings.TrimSpace(f.Value)
+
+		case f.Name == "Type de client:":
+			switch f.Value {
+			case "entreprise":
+				tr.Contact.ClientType = Company
+			case "particulier":
+				tr.Contact.ClientType = Individual
+			default:
+				slog.Error("unknown client type", "field_value", f.Value)
+			}
 		}
 	}
 

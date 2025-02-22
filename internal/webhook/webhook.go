@@ -74,8 +74,6 @@ func WebhookHandler(w http.ResponseWriter, r *http.Request, db *sql.DB, s3 *mini
 		return
 	}
 
-	isCompany := len(transaction.Contact.Company) > 0
-
 	// tier creation
 	clientCounter += 1
 	tiers := truckflow.Tiers{
@@ -89,9 +87,10 @@ func WebhookHandler(w http.ResponseWriter, r *http.Request, db *sql.DB, s3 *mini
 		Code:         fmt.Sprintf("%05d", clientCounter),
 		ProductCodes: "Dechets verts",
 	}
-	if isCompany {
-		tiers.ContactPerson = transaction.Contact.FirstName + " " + transaction.Contact.LastName
+
+	if transaction.Contact.ClientType == payrexx.Company {
 		tiers.Label = transaction.Contact.Company
+		tiers.ContactPerson = transaction.Contact.FirstName + " " + transaction.Contact.LastName
 	} else {
 		tiers.Label = transaction.Contact.FirstName + " " + transaction.Contact.LastName
 	}
@@ -141,10 +140,14 @@ func WebhookHandler(w http.ResponseWriter, r *http.Request, db *sql.DB, s3 *mini
 		pa.ParkCode = fmt.Sprintf("NEW%05d", passCounter)
 		pa.Label = pa.ParkCode
 		pa.TiersCode = tiers.Code
-		if isCompany {
+
+		switch transaction.Contact.ClientType {
+		case payrexx.Company:
 			pa.CompanyCode = "entreprises"
-		} else {
+		case payrexx.Individual:
 			pa.CompanyCode = "particuliers"
+		default:
+			slog.Error("unknown client type", "transactionId", transaction.Uuid)
 		}
 		passImport.Items = append(passImport.Items, *pa)
 	}
