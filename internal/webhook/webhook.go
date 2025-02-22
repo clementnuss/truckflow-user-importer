@@ -177,7 +177,7 @@ func WebhookHandler(w http.ResponseWriter, r *http.Request, db *sql.DB, s3 *mini
 
 	err = database.RecordProcessedTransaction(db, clientHash, transaction.Uuid)
 	if err != nil {
-		slog.Error("unable to record processed transaction.", "transaction", transaction.Uuid, "error", err)
+		slog.Error("unable to record processed transaction.", "transaction", transaction.Uuid, "error", err, "code", tiers.Code, "label", tiers.Label)
 	}
 
 	slog.Info("successfully imported a new tier", "tiers", transaction.Uuid, "code", tiers.Code, "label", tiers.Label)
