@@ -109,4 +109,12 @@ func (tr *Transaction) SanitizeFields() {
 			tr.Plates = append(tr.Plates, "N/D")
 		}
 	}
+
+	if len(plates) > platesQty {
+		lastPlates := tr.Plates[platesQty-1:]
+		extraPlates := plates[platesQty:]
+		lastPlates = append(lastPlates, extraPlates...)
+		lastPlate := strings.Join(lastPlates, ".")
+		tr.Plates[platesQty-1] = lastPlate
+	}
 }
