@@ -3,6 +3,7 @@ package payrexx
 import (
 	"log/slog"
 	"regexp"
+	"slices"
 	"strings"
 	"time"
 )
@@ -98,7 +99,7 @@ func (tr *Transaction) SanitizeFields() {
 		}
 	}
 
-	reg, _ := regexp.Compile(`\s+`) // compile
+	reg, _ := regexp.Compile(`([^\w,])`) // only allow \w and commas
 	platesStr = reg.ReplaceAllString(platesStr, "")
 
 	plates := strings.Split(platesStr, ",")
@@ -113,8 +114,15 @@ func (tr *Transaction) SanitizeFields() {
 	if len(plates) > platesQty {
 		lastPlates := tr.Plates[platesQty-1:]
 		extraPlates := plates[platesQty:]
+		extraPlates = slices.DeleteFunc(extraPlates, func(s string) bool {
+			return s == ""
+		})
 		lastPlates = append(lastPlates, extraPlates...)
 		lastPlate := strings.Join(lastPlates, ".")
+		if len(lastPlate) > 30 {
+			lastPlate = lastPlate[:27] + "..."
+			slog.Info("plate", "len", len(lastPlate), "lastPlate", lastPlate)
+		}
 		tr.Plates[platesQty-1] = lastPlate
 	}
 }
