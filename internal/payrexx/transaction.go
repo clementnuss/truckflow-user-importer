@@ -8,6 +8,10 @@ import (
 	"time"
 )
 
+type Payout struct {
+	Amount int    `json:"amount"`
+	Status string `json:"status"`
+}
 type Transaction struct {
 	Uuid    string   `json:"uuid"`
 	Time    DateTime `json:"time"`

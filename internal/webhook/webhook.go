@@ -32,6 +32,7 @@ func WebhookHandler(w http.ResponseWriter, r *http.Request, db *sql.DB, s3 *mini
 
 	formData := struct {
 		Transaction payrexx.Transaction `json:"transaction"`
+		Payout      payrexx.Payout      `json:"payout"`
 	}{}
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
@@ -42,6 +43,11 @@ func WebhookHandler(w http.ResponseWriter, r *http.Request, db *sql.DB, s3 *mini
 
 	if err := json.Unmarshal(body, &formData); err != nil {
 		http.Error(w, "Error parsing JSON", http.StatusBadRequest)
+		return
+	}
+
+	if formData.Payout.Status != "" {
+		slog.Info("Ignoring payout data")
 		return
 	}
 
