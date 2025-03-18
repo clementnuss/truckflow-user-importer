@@ -51,11 +51,24 @@ func WebhookHandler(w http.ResponseWriter, r *http.Request, db *sql.DB, s3 *mini
 		return
 	}
 
+	if formData.Transaction.Invoice.ReferenceID != "" {
+		slog.Info("Ignoring invoice for weighing entries")
+		_, _ = w.Write([]byte("Ignoring invoice for weighing entries"))
+		return
+	}
+
 	transaction := formData.Transaction
-	transaction.SanitizeFields()
+	err = transaction.SanitizeFields()
+
 	if transaction.Status != "confirmed" {
 		slog.Info("skipping uncompleted transaction", "status", transaction.Status)
 		_, _ = w.Write([]byte("Ignoring uncompleted transaction"))
+		return
+	}
+
+	if err != nil {
+		slog.Error("unable to sanitize transaction fields", "error", err)
+		http.Error(w, "transaction error", http.StatusInternalServerError)
 		return
 	}
 

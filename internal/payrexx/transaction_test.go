@@ -18,7 +18,7 @@ func TestCorrectWebhookParsing(t *testing.T) {
     "invoice": {
       "products": [
         {
-          "name": "SomeProduct",
+          "name": "Badge Ajoverts",
           "description": "SomeProductDescription",
           "price": 2000,
           "quantity": 2,
@@ -82,7 +82,7 @@ func TestMultiPlate(t *testing.T) {
     "invoice": {
       "products": [
         {
-          "name": "SomeProduct",
+          "name": "Badge Ajoverts",
           "description": "SomeProductDescription",
           "price": 2000,
           "quantity": 2,
@@ -131,7 +131,7 @@ func TestLongLastPlate(t *testing.T) {
     "invoice": {
       "products": [
         {
-          "name": "SomeProduct",
+          "name": "Badge Ajoverts",
           "description": "SomeProductDescription",
           "price": 2000,
           "quantity": 1,

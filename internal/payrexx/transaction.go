@@ -1,6 +1,7 @@
 package payrexx
 
 import (
+	"fmt"
 	"log/slog"
 	"regexp"
 	"slices"
@@ -35,6 +36,7 @@ func (date *DateTime) UnmarshalJSON(data []byte) (err error) {
 type Invoice struct {
 	Products     []Product     `json:"products"`
 	CustomFields []CustomField `json:"custom_fields"`
+	ReferenceID  string        `json:"referenceId"`
 }
 
 type Product struct {
@@ -70,7 +72,7 @@ type Contact struct {
 	ClientType
 }
 
-func (tr *Transaction) SanitizeFields() {
+func (tr *Transaction) SanitizeFields() error {
 	tr.Contact.FirstName = strings.TrimSpace(tr.Contact.FirstName)
 	tr.Contact.LastName = strings.TrimSpace(tr.Contact.LastName)
 	tr.Contact.StreetAndNo = strings.TrimSpace(tr.Contact.StreetAndNo)
@@ -81,6 +83,9 @@ func (tr *Transaction) SanitizeFields() {
 	tr.Contact.Email = strings.TrimSpace(tr.Contact.Email)
 	tr.Contact.Company = strings.TrimSpace(tr.Contact.Company)
 
+  if len(tr.Invoice.Products) != 1 || tr.Invoice.Products[0].Name != "Badge Ajoverts" {
+    return fmt.Errorf("invalid product name or number of products")
+  }
 	platesQty := tr.Invoice.Products[0].Quantity
 	var platesStr string
 	for _, f := range tr.Invoice.CustomFields {
@@ -129,4 +134,6 @@ func (tr *Transaction) SanitizeFields() {
 		}
 		tr.Plates[platesQty-1] = lastPlate
 	}
+
+  return nil
 }
